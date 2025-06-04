@@ -8,9 +8,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Orbitron', sans-serif; /* Neon temasına uygun bir font */
-            background-color: #000; /* Siyah arka plan */
-            color: #fff; /* Beyaz ana metin rengi */
+            font-family: 'Orbitron', sans-serif;
+            background-color: #000;
+            color: #fff;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -23,19 +23,19 @@
         }
 
         .neon-text {
-            font-size: 2.5rem; /* Mobil için biraz daha küçük, masaüstünde büyür */
+            font-size: 2.5rem; /* Mobil için */
             text-align: center;
             color: #fff;
             text-shadow:
                 0 0 7px #fff,
                 0 0 10px #fff,
                 0 0 21px #fff,
-                0 0 42px #0fa, /* Neon yeşili */
+                0 0 42px #0fa,
                 0 0 82px #0fa,
                 0 0 92px #0fa,
                 0 0 102px #0fa,
                 0 0 151px #0fa;
-            animation: flicker 1.5s infinite alternate; /* Yanıp sönme efekti */
+            animation: flicker 1.5s infinite alternate;
         }
 
         @keyframes flicker {
@@ -58,10 +58,11 @@
         .button-container {
             margin-top: 50px;
             display: flex;
-            flex-direction: column; /* Mobil için alt alta */
+            flex-direction: column; /* Mobil için varsayılan alt alta */
             align-items: center;
-            gap: 20px; /* Butonlar arası boşluk */
-            position: relative; /* Evet butonu için referans noktası */
+            gap: 20px;
+            width: 100%; /* Mobil için tam genişlik */
+            max-width: 300px; /* Butonların çok yayılmasını engelle */
         }
 
         .neon-button {
@@ -69,14 +70,16 @@
             font-size: 1.2rem;
             color: #fff;
             background-color: transparent;
-            border: 2px solid #0fa; /* Neon yeşili çerçeve */
+            border: 2px solid #0fa;
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.3s ease;
             text-shadow: 0 0 5px #0fa, 0 0 10px #0fa;
             box-shadow: 0 0 10px #0fa, inset 0 0 10px #0fa;
             position: relative; /* İçerik ve animasyonlar için */
-            overflow: hidden; /* Parlama efekti için */
+            overflow: hidden;
+            width: 100%; /* Mobil için butonlar tam genişlikte olsun */
+            box-sizing: border-box;
         }
 
         .neon-button::before {
@@ -101,34 +104,32 @@
         }
 
         #yes-button {
-            position: absolute; /* Kaçması için absolute pozisyon */
-            /* Başlangıç pozisyonu JavaScript ile ayarlanacak */
-            transition: top 0.2s ease-out, left 0.2s ease-out; /* Kaçma animasyonu */
-        }
-
-        #no-button {
-           /* Hayır butonu için özel bir stil gerekirse buraya eklenebilir */
+            /* Başlangıçta position:relative olacak, JavaScript ile ayarlanacak */
+            transition: top 0.2s ease-out, left 0.2s ease-out, opacity 0.2s ease-out;
+            /* order: -1;  Eğer flex order ile sıralama gerekirse */
         }
 
         /* Mesaj Kutusu Stilleri */
         .message-box {
-            display: none; /* Başlangıçta gizli */
+            display: none;
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background-color: #111; /* Koyu arka plan */
-            border: 2px solid #0fa; /* Neon çerçeve */
+            background-color: #111;
+            border: 2px solid #0fa;
             border-radius: 10px;
-            padding: 30px;
+            padding: 20px; /* Mobil için biraz daha az padding */
             text-align: center;
-            z-index: 1000; /* Diğer her şeyin üzerinde */
+            z-index: 1000;
             box-shadow: 0 0 20px #0fa;
+            width: 80%;
+            max-width: 400px;
         }
 
         .message-box p {
-            font-size: 1.5rem;
-            color: #0fa; /* Neon yeşili metin */
+            font-size: 1.2rem; /* Mobil için uygun boyut */
+            color: #0fa;
             margin-bottom: 20px;
         }
 
@@ -144,21 +145,27 @@
         }
 
         .message-box button:hover {
-            background-color: #0c8; /* Biraz daha koyu yeşil */
+            background-color: #0c8;
         }
-
 
         /* Medium (tablet) ve üzeri ekranlar için */
         @media (min-width: 768px) {
             .neon-text {
-                font-size: 4rem; /* Daha büyük yazı */
+                font-size: 4rem;
             }
             .button-container {
                 flex-direction: row; /* Yan yana butonlar */
                 gap: 40px;
+                width: auto; /* İçeriğe göre genişlik */
             }
-            #yes-button {
-                /* Absolute pozisyonu koru, başlangıç yeri JavaScript ile ayarlanacak */
+            .neon-button {
+                width: auto; /* İçeriğe göre genişlik */
+            }
+            .message-box {
+                padding: 30px;
+            }
+            .message-box p {
+                font-size: 1.5rem;
             }
         }
     </style>
@@ -168,12 +175,11 @@
     <h1 class="neon-text">BENİ SEVİYOR MUSUN?</h1>
 
     <div class="button-container" id="buttonContainer">
-        <!-- Evet butonu başlangıçta container içinde, JavaScript ile pozisyonu ayarlanacak -->
+        <!-- Butonların sırası JavaScript ile ayarlanabilir veya CSS order kullanılabilir -->
         <button class="neon-button" id="yes-button">EVET</button>
         <button class="neon-button" id="no-button">HAYIR</button>
     </div>
 
-    <!-- Mesaj Kutusu -->
     <div id="messageBox" class="message-box">
         <p id="messageText"></p>
         <button id="closeMessageBox">Kapat</button>
@@ -187,89 +193,75 @@
         const messageText = document.getElementById('messageText');
         const closeMessageBoxButton = document.getElementById('closeMessageBox');
 
-        let initialYesButtonRect;
+        const fleeMargin = 20; // Kenarlardan kaçış mesafesi
 
-        // Evet butonunun başlangıç pozisyonunu ayarla
-        function setInitialYesButtonPosition() {
-            // Butonları yan yana getirmek için Hayır butonunun soluna yerleştir
-            const noButtonRect = noButton.getBoundingClientRect();
-            const containerRect = buttonContainer.getBoundingClientRect();
+        function setInitialButtonPositions() {
+            // Evet butonunu başlangıçta normal akışa dahil et (relative)
+            yesButton.style.position = 'relative';
+            yesButton.style.top = 'auto';
+            yesButton.style.left = 'auto';
+            yesButton.style.transform = 'none';
+            yesButton.style.opacity = '1'; // Görünür yap
 
-            // Eğer ekran darsa (mobil gibi), butonlar alt alta gelir.
-            // Bu durumda Evet butonunu Hayır'ın üstüne veya container'ın ortasına alabiliriz.
-            // Şimdilik container'ın sol tarafına yakın bir yere koyalım.
-            // Daha sonra mouseover ile kaçacağı için başlangıç pozisyonu çok kritik değil.
-
-            if (window.innerWidth < 768) { // Mobil görünümde
-                 // Evet butonunu Hayır butonunun hemen üstüne veya container'ın ortasına yerleştirebiliriz.
-                 // Şimdilik container'ın sol üstüne yakın bir yere koyalım.
-                yesButton.style.top = '0px'; // Container'ın üstüne göre
-                yesButton.style.left = '50%'; // Container'ın ortasına göre
-                yesButton.style.transform = 'translateX(-50%)'; // Tam ortalamak için
-            } else { // Masaüstü görünümde
-                yesButton.style.position = 'relative'; // Normal akışta kalsın
-                yesButton.style.left = 'auto';
-                yesButton.style.top = 'auto';
-                yesButton.style.transform = 'none';
-                // Butonları yan yana getirmek için container'a ekleyelim
-                // ve sıralamayı koruyalım.
-                if (buttonContainer.firstChild !== yesButton) {
-                    buttonContainer.insertBefore(yesButton, noButton);
-                }
+            // Butonların DOM'daki sırasını kontrol et.
+            // Mobil (column) için Evet'in üstte, Masaüstü (row) için Evet'in solda olması için
+            // Evet butonunu Hayır butonundan önceye taşıyalım.
+            if (buttonContainer.firstChild !== yesButton) {
+                buttonContainer.insertBefore(yesButton, noButton);
             }
-             // İlk pozisyonu kaydet (gerekirse)
-            initialYesButtonRect = yesButton.getBoundingClientRect();
         }
 
-
-        // Evet butonunu rastgele bir konuma taşı
         function moveButton() {
-            // Butonun kaçacağı alanı belirle (ekran sınırları içinde)
-            // Viewport boyutlarını al
-            const maxWidth = window.innerWidth - yesButton.offsetWidth - 20; // Sağdan 20px boşluk
-            const maxHeight = window.innerHeight - yesButton.offsetHeight - 20; // Alttan 20px boşluk
+            // Butonu fixed yaparak sayfa üzerinde serbestçe hareket etmesini sağla
+            yesButton.style.position = 'fixed';
+            yesButton.style.opacity = '1'; // Hareket ederken görünür olsun
 
-            // Rastgele pozisyonlar üret
-            // Sol üst köşeye çok yakın olmaması için min 20px
-            const randomX = Math.max(20, Math.floor(Math.random() * maxWidth));
-            const randomY = Math.max(20, Math.floor(Math.random() * maxHeight));
+            const buttonWidth = yesButton.offsetWidth;
+            const buttonHeight = yesButton.offsetHeight;
 
-            yesButton.style.position = 'fixed'; // Ekran üzerinde serbestçe hareket etmesi için
+            // Butonun tamamen ekran içinde kalacağı maksimum pozisyonlar
+            const maxX = window.innerWidth - buttonWidth - fleeMargin;
+            const maxY = window.innerHeight - buttonHeight - fleeMargin;
+
+            // Rastgele pozisyonlar üret (minimum fleeMargin olacak şekilde)
+            let randomX = Math.max(fleeMargin, Math.floor(Math.random() * maxX));
+            let randomY = Math.max(fleeMargin, Math.floor(Math.random() * maxY));
+
+            // Eğer ekran çok küçükse ve buton sığmıyorsa, pozisyonu 0'a yakın tut
+            if (maxX < fleeMargin) randomX = fleeMargin;
+            if (maxY < fleeMargin) randomY = fleeMargin;
+
+
             yesButton.style.left = randomX + 'px';
             yesButton.style.top = randomY + 'px';
-            yesButton.style.transform = 'none'; // Ortalamayı kaldır
+            yesButton.style.transform = 'none'; // Önceki transformları temizle
         }
 
-        // Evet butonuna mouseover ve click event listener'ları ekle
         yesButton.addEventListener('mouseover', moveButton);
         yesButton.addEventListener('click', (event) => {
-            event.preventDefault(); // Varsayılan tıklama eylemini engelle
-            moveButton(); // Yine de kaçsın
-            // İsteğe bağlı: "Beni yakalayamazsın!" gibi bir mesaj gösterilebilir.
+            event.preventDefault();
+            moveButton();
         });
 
-        // Hayır butonuna tıklandığında mesaj göster
         noButton.addEventListener('click', () => {
             showMessage("Kararına saygı duyuyorum. 😢");
         });
 
-        // Mesaj kutusunu göster
         function showMessage(message) {
             messageText.textContent = message;
             messageBox.style.display = 'block';
         }
 
-        // Mesaj kutusunu kapat
         closeMessageBoxButton.addEventListener('click', () => {
             messageBox.style.display = 'none';
         });
 
-        // Sayfa yüklendiğinde ve pencere yeniden boyutlandırıldığında buton pozisyonunu ayarla
-        window.addEventListener('load', setInitialYesButtonPosition);
-        window.addEventListener('resize', setInitialYesButtonPosition);
+        // Sayfa yüklendiğinde ve pencere yeniden boyutlandırıldığında buton pozisyonlarını ayarla
+        window.addEventListener('load', setInitialButtonPositions);
+        window.addEventListener('resize', setInitialButtonPositions);
 
         // Başlangıçta bir kere çağır
-        setInitialYesButtonPosition();
+        setInitialButtonPositions();
     </script>
 
 </body>
