@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MirmelFlix - Film Listeniz</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #141414; }
+        .font-logo { font-family: 'Bebas Neue', cursive; }
+        .movie-card:hover .details-overlay { opacity: 1; }
+        .action-button {
+            position: absolute; top: 8px; right: 8px; background-color: rgba(0,0,0,0.7);
+            border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; opacity: 0; transition: opacity 0.3s, transform 0.3s; transform: scale(0.8);
+        }
+        .movie-card:hover .action-button { opacity: 1; transform: scale(1); }
+        .search-input:focus { outline: none; box-shadow: 0 0 0 2px #E50914; }
+        .line-clamp-3 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+    </style>
+</head>
+<body class="text-white">
+
+    <!-- GİRİŞ EKRANI -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center bg-cover" style="background-image: url('https://placehold.co/1920x1080/000000/333333?text=...')">
+        <div class="absolute inset-0 bg-black bg-opacity-60"></div>
+        <div class="relative z-10 w-full max-w-md p-8 space-y-6 bg-black bg-opacity-75 rounded-lg shadow-lg">
+            <div class="text-center">
+                 <h1 class="text-6xl font-logo text-red-600 tracking-wider">MirmelFlix</h1>
+                 <p class="text-gray-400 mt-2">Oturum Aç</p>
+            </div>
+            <form id="login-form" class="space-y-6">
+                <div><input id="username" type="text" placeholder="Kullanıcı Adı" required class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 transition"></div>
+                <div><input id="password" type="password" placeholder="Şifre" required class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 transition"></div>
+                <div id="login-error" class="text-red-500 text-sm text-center hidden">Hatalı kullanıcı adı veya şifre.</div>
+                <button type="submit" class="w-full py-3 font-bold text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors duration-300">Oturum Aç</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ANA UYGULAMA EKRANI -->
+    <div id="app-screen" class="hidden">
+        <header class="p-4 flex justify-between items-center bg-gradient-to-b from-black to-transparent fixed w-full z-20">
+            <h1 class="text-5xl font-logo text-red-600 tracking-wider">MirmelFlix</h1>
+            <div class="flex items-center gap-4">
+                 <button id="back-to-list-btn" class="hidden bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-md transition">Listeme Dön</button>
+                <div class="w-full max-w-xs">
+                    <form id="search-form" class="relative">
+                        <input id="search-input" type="text" placeholder="Film adı ara..." class="w-full py-2 pl-4 pr-10 bg-gray-800 bg-opacity-70 border border-gray-600 rounded-full search-input transition-all duration-300 focus:bg-gray-700">
+                        <svg class="w-6 h-6 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    </form>
+                    <div id="search-error" class="text-yellow-400 text-sm text-center mt-2 hidden"></div>
+                </div>
+            </div>
+        </header>
+
+        <main class="pt-24 pb-12 px-4 md:px-10">
+            <h2 id="grid-title" class="text-2xl font-bold mb-4">Listem</h2>
+            <div id="movie-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"></div>
+            <div id="empty-list-message" class="text-center py-20 text-gray-500">
+                <p class="text-xl">Listeniz henüz boş.</p>
+                <p>Arama çubuğunu kullanarak film arayabilir ve listenize ekleyebilirsiniz.</p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- UYGULAMA AYARLARI ---
+        const API_KEY = '20a0abcbeaf2431b5807118f4fe80c5e'; 
+        const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+        const POSTER_BASE_URL = 'https://image.tmdb.org/t/p/w500';
+        // Örnek kullanıcılar. Gerçek bir uygulamada bu bilgiler sunucuda saklanmalıdır.
+        const USERS = { 'admin': '123', 'guest': '456' };
+
+        // --- UYGULAMA VERİLERİ ---
+        let myMovieList = [];
+        let currentSearchResults = [];
+        let loggedInUser = null;
+
+        // --- DOM ELEMENTLERİ ---
+        const loginScreen = document.getElementById('login-screen'), appScreen = document.getElementById('app-screen');
+        const loginForm = document.getElementById('login-form'), loginError = document.getElementById('login-error');
+        const searchForm = document.getElementById('search-form'), searchInput = document.getElementById('search-input'), searchError = document.getElementById('search-error');
+        const movieGrid = document.getElementById('movie-grid'), emptyListMessage = document.getElementById('empty-list-message'), gridTitle = document.getElementById('grid-title');
+        const backToListBtn = document.getElementById('back-to-list-btn');
+        
+        // --- FONKSİYONLAR ---
+        
+        /** Aktif kullanıcı için Local Storage anahtarını oluşturur. */
+        const getStorageKey = () => `mirmelflix-list-${loggedInUser}`;
+
+        /** Listeyi mevcut kullanıcıya göre tarayıcı hafızasına kaydeder. */
+        function saveListToLocalStorage() {
+            if (!loggedInUser) return;
+            localStorage.setItem(getStorageKey(), JSON.stringify(myMovieList));
+        }
+
+        /** Listeyi mevcut kullanıcıya göre tarayıcı hafızasından yükler. */
+        function loadListFromLocalStorage() {
+            if (!loggedInUser) return;
+            const savedList = localStorage.getItem(getStorageKey());
+            myMovieList = savedList ? JSON.parse(savedList) : [];
+        }
+
+        async function handleSearch(event) {
+            event.preventDefault();
+            const searchTerm = searchInput.value.trim();
+            
+            if (!searchTerm) {
+                handleBackToList(true); // Arama boşsa, butonu gizle ve ana listeyi göster
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(searchTerm)}&language=tr-TR&page=1`);
+                if (!response.ok) throw new Error("API'ye ulaşılamadı. Anahtarınızı kontrol edin.");
+                const data = await response.json();
+                currentSearchResults = data.results;
+                renderMovies(currentSearchResults, `Arama Sonuçları: "${searchTerm}"`);
+                backToListBtn.classList.remove('hidden'); // Arama sonuçları gösterildiğinde butonu görünür yap
+            } catch (error) {
+                showError(error.message);
+                console.error("Arama hatası:", error);
+            }
+        }
+
+        function handleListAction(event) {
+            const card = event.target.closest('.movie-card');
+            if (!card) return;
+
+            const movieId = Number(card.dataset.movieId);
+            const movieIndexInList = myMovieList.findIndex(m => m.id === movieId);
+            const isOnSearchResults = currentSearchResults.length > 0;
+
+            if (movieIndexInList > -1) {
+                myMovieList.splice(movieIndexInList, 1);
+            } else {
+                const movieToAdd = currentSearchResults.find(m => m.id === movieId);
+                if (movieToAdd) myMovieList.unshift(movieToAdd);
+            }
+            
+            saveListToLocalStorage(); // Değişikliği hafızaya kaydet
+
+            const listToRender = isOnSearchResults ? currentSearchResults : myMovieList;
+            const title = isOnSearchResults ? gridTitle.textContent : "Listem";
+            renderMovies(listToRender, title);
+        }
+        
+        function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (USERS[username] && USERS[username] === password) {
+                loggedInUser = username; // Aktif kullanıcıyı ayarla
+                loadListFromLocalStorage(); // Bu kullanıcıya ait listeyi hafızadan yükle
+                loginScreen.classList.add('hidden');
+                appScreen.classList.remove('hidden');
+                renderMovies(myMovieList, "Listem");
+            } else {
+                loginError.classList.remove('hidden');
+            }
+        }
+        
+        /**
+         * Arama sonuçlarından ana listeye geri döner.
+         * @param {boolean} clearSearch - Arama kutusunun temizlenip temizlenmeyeceği.
+         */
+        function handleBackToList(clearSearch = false) {
+            if (clearSearch) {
+                 searchInput.value = ''; 
+            }
+            backToListBtn.classList.add('hidden'); // Butonu gizle
+            currentSearchResults = []; // Arama sonuçlarını temizle
+            renderMovies(myMovieList, "Listem"); // Ana listeyi göster
+        }
+
+        // --- OLAY DİNLEYİCİLERİ ---
+        loginForm.addEventListener('submit', handleLogin);
+        searchForm.addEventListener('submit', handleSearch);
+        movieGrid.addEventListener('click', handleListAction);
+        backToListBtn.addEventListener('click', () => handleBackToList(false));
+
+        // --- Kopyala/Yapıştır için değişmeyen fonksiyonlar (kısalık için gizlendi) ---
+        const showError = (message) => { searchError.textContent = message; searchError.classList.remove('hidden'); setTimeout(() => { searchError.classList.add('hidden'); }, 4000); };
+        const createMovieCard = (movie, isInList) => {
+            const posterPath = movie.poster_path ? `${POSTER_BASE_URL}${movie.poster_path}` : 'https://placehold.co/500x750/141414/ffffff?text=Poster+Yok';
+            const actionButtonIcon = isInList ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>`;
+            return `<div class="movie-card relative rounded-lg overflow-hidden shadow-lg transform hover:scale-105 hover:z-10 transition-transform duration-300 cursor-pointer group" data-movie-id="${movie.id}"><img src="${posterPath}" alt="${movie.title}" class="w-full h-full object-cover" onerror="this.onerror=null;this.src='https://placehold.co/500x750/141414/ffffff?text=Poster+Yok';"><div class="details-overlay absolute inset-0 bg-black bg-opacity-80 opacity-0 transition-opacity duration-300 p-4 flex flex-col justify-end"><h3 class="font-bold text-lg">${movie.title}</h3><p class="text-sm text-gray-300 mt-1">${movie.release_date?.split('-')[0] || 'Tarih Yok'}</p><p class="text-sm mt-2 font-light line-clamp-3">${movie.overview || 'Açıklama mevcut değil.'}</p></div><div class="action-button" title="${isInList ? 'Listeden Kaldır' : 'Listeye Ekle'}">${actionButtonIcon}</div></div>`;
+        };
+        const renderMovies = (moviesToRender, title) => {
+            gridTitle.textContent = title; movieGrid.innerHTML = '';
+            if (moviesToRender.length === 0) {
+                if (title === "Listem") { emptyListMessage.classList.remove('hidden'); }
+                else { movieGrid.innerHTML = `<p class="col-span-full text-center text-gray-500">Aramanızla eşleşen film bulunamadı.</p>`; emptyListMessage.classList.add('hidden'); }
+            } else {
+                emptyListMessage.classList.add('hidden');
+                moviesToRender.forEach(movie => {
+                    const isAlreadyInList = myMovieList.some(m => m.id === movie.id);
+                    movieGrid.innerHTML += createMovieCard(movie, isAlreadyInList);
+                });
+            }
+        };
+
+    </script>
+</body>
+</html>
