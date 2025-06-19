@@ -15,7 +15,7 @@
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #141414; padding-bottom: 80px; }
         .font-logo { font-family: 'Bebas Neue', cursive; }
-        .movie-card { overflow: hidden; }
+        .movie-card { overflow: hidden; flex-shrink: 0; }
         .action-button {
             position: absolute; top: 8px; right: 8px; background-color: rgba(0,0,0,0.7);
             border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
@@ -23,7 +23,6 @@
         }
         .movie-card:hover .action-button { opacity: 1; transform: scale(1); }
         .search-input:focus { outline: none; box-shadow: 0 0 0 2px #E50914; }
-        .line-clamp-3 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
         .modal-overlay { transition: opacity 0.3s ease; }
         .modal-content { transition: transform 0.3s ease; }
         .watched-icon {
@@ -32,11 +31,41 @@
         }
         .star-rating .star { color: #4a5568; cursor: pointer; transition: color 0.2s; font-size: 2rem; }
         .star-rating .star:hover, .star-rating .star.selected { color: #f59e0b; }
+        
+        #loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3); border-top: 4px solid #E50914;
+            border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .sort-button, .filter-select { background-color: #333; border-color: #555; }
+        .sort-button.active { background-color: #E50914; }
+
+        .movie-row-grid-scrollable {
+            display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 1rem;
+            scroll-behavior: smooth; -webkit-overflow-scrolling: touch;
+        }
+        .movie-row-grid-scrollable::-webkit-scrollbar { display: none; }
+        .movie-row-grid-scrollable { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .scroll-arrow {
+            background-color: rgba(20, 20, 20, 0.6); backdrop-filter: blur(2px);
+            border-radius: 50%; width: 40px; height: 40px;
+            color: white; font-size: 1.5rem; transition: background-color 0.2s; z-index: 30;
+        }
+        .scroll-arrow:hover { background-color: rgba(20, 20, 20, 0.8); }
+
+        #filter-panel {
+            position: fixed; top: 0; right: -350px; width: 350px; height: 100%;
+            background-color: #181818; z-index: 50; transition: right 0.3s ease-in-out;
+            box-shadow: -10px 0px 20px rgba(0,0,0,0.5);
+        }
+        #filter-panel.open { right: 0; }
+
     </style>
 </head>
 <body class="text-white">
 
-    <!-- GİRİŞ EKRANI -->
     <div id="login-screen" class="min-h-screen flex items-center justify-center bg-cover" style="background-image: url('https://placehold.co/1920x1080/000000/333333?text=...')">
         <div class="absolute inset-0 bg-black bg-opacity-60"></div>
         <div class="relative z-10 w-full max-w-md p-8 space-y-6 bg-black bg-opacity-75 rounded-lg shadow-lg">
@@ -53,39 +82,50 @@
         </div>
     </div>
 
-    <!-- ANA UYGULAMA EKRANI -->
     <div id="app-screen" class="hidden">
         <header class="p-4 flex justify-between items-center bg-gradient-to-b from-black to-transparent fixed w-full z-40">
             <h1 class="text-5xl font-logo text-red-600 tracking-wider">MirmelFlix</h1>
-            <div class="flex items-center gap-4">
-                 <button id="back-to-home-btn" class="hidden bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-md transition">Ana Sayfa</button>
+            <nav class="flex items-center gap-4">
+                 <button id="nav-home" class="hidden bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-md transition">Ana Sayfa</button>
+                 <button id="nav-list" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-md transition">Listem</button>
+                 <button id="nav-filter" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-md transition">Filtrele</button>
                 <div class="w-full max-w-xs relative">
                     <form id="search-form" class="relative">
                         <input id="search-input" type="text" placeholder="Film adı ara..." class="w-full py-2 pl-4 pr-10 bg-gray-800 bg-opacity-70 border border-gray-600 rounded-full search-input transition-all duration-300 focus:bg-gray-700">
                         <svg class="w-6 h-6 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                     </form>
                 </div>
-                <button id="logout-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition">Çıkış Yap</button>
-            </div>
+                <!-- DÜZELTİLDİ: Çıkış Yap butonu stili diğerleriyle uyumlu hale getirildi -->
+                <button id="logout-btn" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-md transition">Çıkış Yap</button>
+            </nav>
         </header>
 
         <main id="main-content" class="pt-24 pb-12 px-4 md:px-10 space-y-12"></main>
         
-        <footer id="footer-counter" class="hidden fixed bottom-0 left-0 w-full bg-black bg-opacity-80 backdrop-blur-sm p-3 z-30 border-t border-gray-800">
-            <div class="max-w-7xl mx-auto text-center">
-                <p class="text-white font-medium">Listenizde <span id="movie-count" class="font-bold text-lg text-red-500">0</span> film bulunuyor.</p>
-            </div>
-        </footer>
-    </div>
-
-    <!-- FİLM DETAY MODAL'I -->
-    <div id="movie-details-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4 modal-overlay">
-        <div class="modal-content bg-gray-900 rounded-lg max-w-4xl w-full max-h-screen overflow-y-auto transform scale-95">
-            <div id="modal-body" class="p-0"></div>
-        </div>
+        <footer id="footer-counter" class="hidden fixed bottom-0 left-0 w-full bg-black bg-opacity-80 backdrop-blur-sm p-3 z-30 border-t border-gray-800"></footer>
     </div>
     
+    <div id="spinner-container" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"><div id="loading-spinner"></div></div>
+
+    <div id="movie-details-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4 modal-overlay"><div class="modal-content bg-gray-900 rounded-lg max-w-4xl w-full max-h-screen overflow-y-auto transform scale-95"><div id="modal-body" class="p-0"></div></div></div>
+    
+    <div id="filter-panel">
+        <div class="p-6 h-full flex flex-col">
+            <h2 class="text-3xl font-bold mb-6">Filtrele</h2>
+            <div class="space-y-4 flex-grow">
+                <div><label for="genre-filter" class="block mb-2 text-sm font-medium text-gray-400">Türe Göre</label><select id="genre-filter" class="filter-select w-full rounded p-2 text-white"></select></div>
+                <div><label for="year-filter" class="block mb-2 text-sm font-medium text-gray-400">Yıla Göre</label><select id="year-filter" class="filter-select w-full rounded p-2 text-white"></select></div>
+                <div><label for="rating-filter" class="block mb-2 text-sm font-medium text-gray-400">Puana Göre</label><select id="rating-filter" class="filter-select w-full rounded p-2 text-white"></select></div>
+            </div>
+            <div class="mt-auto space-y-2">
+                 <button id="apply-filters-btn" class="w-full bg-red-700 hover:bg-red-800 text-white font-semibold py-2 px-4 rounded">Filtreyi Uygula</button>
+                 <button id="clear-filters-btn" class="w-full bg-gray-700 hover:bg-gray-800 text-white font-semibold py-2 px-4 rounded">Temizle</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+    document.addEventListener('DOMContentLoaded', () => {
         // --- UYGULAMA AYARLARI ---
         const API_KEY = '20a0abcbeaf2431b5807118f4fe80c5e'; 
         const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
@@ -94,34 +134,37 @@
         const USERS = { 'admin': '123', 'guest': '456' };
 
         // --- UYGULAMA VERİLERİ ---
-        let myMovieList = [];
-        let userMovieMetadata = {};
-        let popularMovies = [];
-        let searchResults = [];
-        let loggedInUser = null;
-        let currentModalMovie = null;
+        let myMovieList = [], userMovieMetadata = {}, genres = [];
+        let popularMovies = [], topRatedMovies = [], upcomingMovies = [];
+        let loggedInUser = null, currentModalMovie = null, currentView = 'home';
 
         // --- DOM ELEMENTLERİ ---
         const loginScreen = document.getElementById('login-screen'), appScreen = document.getElementById('app-screen');
         const loginForm = document.getElementById('login-form'), loginError = document.getElementById('login-error');
         const searchForm = document.getElementById('search-form'), searchInput = document.getElementById('search-input');
         const mainContent = document.getElementById('main-content');
-        const backToHomeBtn = document.getElementById('back-to-home-btn');
+        const navHomeBtn = document.getElementById('nav-home'), navListBtn = document.getElementById('nav-list'), navFilterBtn = document.getElementById('nav-filter');
         const logoutBtn = document.getElementById('logout-btn');
         const modal = document.getElementById('movie-details-modal'), modalBody = document.getElementById('modal-body');
         const footerCounter = document.getElementById('footer-counter');
-        const movieCountSpan = document.getElementById('movie-count');
+        const spinnerContainer = document.getElementById('spinner-container');
+        const filterPanel = document.getElementById('filter-panel');
+        const genreFilter = document.getElementById('genre-filter'), yearFilter = document.getElementById('year-filter'), ratingFilter = document.getElementById('rating-filter');
+        
+        // --- YARDIMCI FONKSİYONLAR ---
+        const showSpinner = () => spinnerContainer.classList.remove('hidden');
+        const hideSpinner = () => spinnerContainer.classList.add('hidden');
+        const openFilterPanel = () => filterPanel.classList.add('open');
+        const closeFilterPanel = () => filterPanel.classList.remove('open');
 
-        // --- DEPOLAMA FONKSİYONLARI ---
+        // --- DEPOLAMA ---
         const getListStorageKey = () => `mirmelflix-list-${loggedInUser}`;
         const getMetaStorageKey = () => `mirmelflix-meta-${loggedInUser}`;
-
         function saveStateToLocalStorage() {
             if (!loggedInUser) return;
             localStorage.setItem(getListStorageKey(), JSON.stringify(myMovieList));
             localStorage.setItem(getMetaStorageKey(), JSON.stringify(userMovieMetadata));
         }
-
         function loadStateFromLocalStorage() {
             if (!loggedInUser) return;
             const savedList = localStorage.getItem(getListStorageKey());
@@ -130,48 +173,102 @@
             userMovieMetadata = savedMeta ? JSON.parse(savedMeta) : {};
         }
 
-        // --- RENDER FONKSİYONLARI ---
+        // --- RENDER ---
         function updateMovieCounter() {
-            const count = myMovieList.length;
-            movieCountSpan.textContent = count;
-            if (count > 0) footerCounter.classList.remove('hidden');
-            else footerCounter.classList.add('hidden');
+             footerCounter.innerHTML = `<div class="max-w-7xl mx-auto text-center"><p class="text-white font-medium">Listenizde <span class="font-bold text-lg text-red-500">${myMovieList.length}</span> film bulunuyor.</p></div>`;
+             if (myMovieList.length > 0) footerCounter.classList.remove('hidden'); else footerCounter.classList.add('hidden');
         }
         
-        function createMovieCard(movie) {
+        function createMovieCard(movie, isScrollable = false) {
             const posterPath = movie.poster_path ? `${POSTER_BASE_URL}${movie.poster_path}` : 'https://placehold.co/500x750/141414/ffffff?text=Poster+Yok';
             const metadata = userMovieMetadata[movie.id] || {};
             const isInList = myMovieList.some(m => m.id === movie.id);
             const watchedIcon = metadata.isWatched ? `<div class="watched-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C3.732 4.943 9.522 3 10 3s6.268 1.943 9.542 7c-3.274 5.057-9.03 7-9.542 7S3.732 15.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg></div>` : '';
             const actionButtonIcon = isInList ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>`;
-            return `<div class="movie-card relative rounded-lg bg-gray-800 shadow-lg transform hover:scale-105 transition-transform duration-300 group" data-movie-id="${movie.id}">${watchedIcon}<div class="action-button" data-action="toggle-list" title="${isInList ? 'Listeden Kaldır' : 'Listeye Ekle'}">${actionButtonIcon}</div><img src="${posterPath}" alt="${movie.title}" class="poster-img w-full h-full object-cover cursor-pointer transition-opacity duration-300" data-action="open-modal"></div>`;
+            const sizingClasses = isScrollable ? 'w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/5 xl:w-1/6 flex-shrink-0' : 'w-full';
+            return `<div class="movie-card ${sizingClasses} relative rounded-lg bg-gray-800 shadow-lg transform hover:scale-105 transition-transform duration-300 group" data-movie-id="${movie.id}">${watchedIcon}<div class="action-button" data-action="toggle-list" title="${isInList ? 'Listeden Kaldır' : 'Listeye Ekle'}">${actionButtonIcon}</div><img src="${posterPath}" alt="${movie.title}" class="poster-img w-full h-full object-cover cursor-pointer transition-opacity duration-300" data-action="open-modal"></div>`;
         }
         
-        function renderMovieRow(title, movies, containerId) {
-            const existingContainer = document.getElementById(containerId);
-            if(existingContainer) existingContainer.remove();
-            if (movies.length === 0 && (containerId === 'my-list-container' || containerId === 'search-results-container')) {
-                 mainContent.insertAdjacentHTML('beforeend', `<div id="${containerId}"><h2 class="text-3xl font-bold mb-4">${title}</h2><p class="text-gray-500">${containerId === 'my-list-container' ? 'Listeniz henüz boş.' : 'Aramanızla eşleşen sonuç bulunamadı.'}</p></div>`);
-                return;
+        function renderMovieRow(title, movies, containerId, options = {}) {
+            let sortControls = '', scrollArrows = '';
+            if (options.sortable) {
+                const activeSort = options.activeSort || 'dateAdded';
+                sortControls = `<div class="flex items-center gap-2 mb-4" id="sort-controls"><span class="text-gray-400">Sırala:</span><button data-sort="dateAdded" class="sort-button ${activeSort === 'dateAdded' ? 'active' : ''} text-white font-semibold py-1 px-3 rounded-full text-sm">Eklenme Tarihi</button><button data-sort="userRating" class="sort-button ${activeSort === 'userRating' ? 'active' : ''} text-white font-semibold py-1 px-3 rounded-full text-sm">Verdiğim Puan</button><button data-sort="release_date" class="sort-button ${activeSort === 'release_date' ? 'active' : ''} text-white font-semibold py-1 px-3 rounded-full text-sm">Yayın Yılı</button></div>`;
             }
-            if(movies.length === 0) return;
-            const movieCards = movies.map(createMovieCard).join('');
-            mainContent.insertAdjacentHTML('afterbegin', `<div id="${containerId}" class="space-y-4"><h2 class="text-3xl font-bold">${title}</h2><div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">${movieCards}</div></div>`);
+            if (options.scrollable) {
+                scrollArrows = `<div class="scroll-arrows flex gap-2"><button data-direction="left" class="scroll-arrow">&larr;</button><button data-direction="right" class="scroll-arrow">&rarr;</button></div>`;
+            }
+            
+            const gridClasses = options.scrollable ? 'movie-row-grid-scrollable' : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4';
+            const movieCards = movies.length > 0 ? movies.map(movie => createMovieCard(movie, options.scrollable)).join('') : `<p class="text-gray-500 col-span-full">${containerId === 'my-list-container' ? 'Listeniz henüz boş.' : 'Sonuç bulunamadı.'}</p>`;
+            const containerHTML = `<div id="${containerId}" class="movie-row space-y-4 relative group"><div class="flex justify-between items-center">${sortControls}<h2 class="text-3xl font-bold">${title}</h2>${scrollArrows}</div><div class="${gridClasses}">${movieCards}</div></div>`;
+            
+            const existingContainer = document.getElementById(containerId);
+            if (existingContainer) existingContainer.outerHTML = containerHTML;
+            else mainContent.insertAdjacentHTML('beforeend', containerHTML);
+        }
+
+        function renderView() {
+            showSpinner();
+            mainContent.innerHTML = ''; 
+            if (currentView === 'home') {
+                navHomeBtn.classList.add('hidden');
+                navListBtn.classList.remove('hidden');
+                navFilterBtn.classList.remove('hidden');
+                renderHomePageContent();
+            } else if (currentView === 'list') {
+                navListBtn.classList.add('hidden');
+                navHomeBtn.classList.remove('hidden');
+                navFilterBtn.classList.add('hidden');
+                renderListPageContent();
+            }
+            hideSpinner();
         }
         
-        async function initAppView() {
-            mainContent.innerHTML = '';
-            backToHomeBtn.classList.add('hidden');
-            renderMovieRow('Listem', myMovieList, 'my-list-container');
-            try {
-                const response = await fetch(`${TMDB_BASE_URL}/movie/popular?api_key=${API_KEY}&language=tr-TR&page=1`);
-                const data = await response.json();
-                popularMovies = data.results;
-                renderMovieRow('Gündemdeki Popüler Filmler', popularMovies, 'popular-movies-container');
-            } catch (error) { console.error("Popüler filmler getirilemedi:", error); }
+        function renderListPageContent() {
+            renderMovieRow('Listem', myMovieList, 'my-list-container', { sortable: true });
             updateMovieCounter();
         }
 
+        function renderHomePageContent(filteredMovies = null) {
+             if (filteredMovies) {
+                renderMovieRow('Filtre Sonuçları', filteredMovies, 'filtered-results-container');
+             } else {
+                renderMovieRow('Gündemdeki Popüler Filmler', popularMovies, 'popular-movies-container', {scrollable: true});
+                renderMovieRow('En Yüksek Puanlılar', topRatedMovies, 'top-rated-movies-container');
+                renderMovieRow('Yakında Gelecekler', upcomingMovies, 'upcoming-movies-container');
+             }
+             updateMovieCounter();
+        }
+
+        function populateFilterPanel() {
+            genreFilter.innerHTML = `<option value="">Türe Göre</option>${genres.map(g => `<option value="${g.id}">${g.name}</option>`).join('')}`;
+            yearFilter.innerHTML = `<option value="">Yıla Göre</option>${Array.from({length: 75}, (_, i) => new Date().getFullYear() - i).map(year => `<option value="${year}">${year}</option>`).join('')}`;
+            ratingFilter.innerHTML = `<option value="">Puana Göre</option><option value="9">9+</option><option value="8">8+</option><option value="7">7+</option><option value="6">6+</option>`;
+        }
+        
+        async function fetchInitialData() {
+            showSpinner();
+            try {
+                const [popularRes, topRatedRes, upcomingRes, genresRes] = await Promise.all([
+                    fetch(`${TMDB_BASE_URL}/movie/popular?api_key=${API_KEY}&language=tr-TR&page=1`),
+                    fetch(`${TMDB_BASE_URL}/movie/top_rated?api_key=${API_KEY}&language=tr-TR&page=1`),
+                    fetch(`${TMDB_BASE_URL}/movie/upcoming?api_key=${API_KEY}&language=tr-TR&page=1`),
+                    fetch(`${TMDB_BASE_URL}/genre/movie/list?api_key=${API_KEY}&language=tr-TR`)
+                ]);
+                popularMovies = (await popularRes.json()).results;
+                topRatedMovies = (await topRatedRes.json()).results;
+                upcomingMovies = (await upcomingRes.json()).results;
+                genres = (await genresRes.json()).genres;
+                populateFilterPanel();
+            } catch (error) { 
+                console.error("Veriler getirilemedi:", error);
+                mainContent.innerHTML = `<p class="text-center text-red-500">Filmler yüklenirken bir hata oluştu.</p>`;
+            } finally {
+                hideSpinner();
+            }
+        }
+        
         function closeModal() {
             modal.classList.add('hidden');
             document.body.style.overflow = '';
@@ -189,46 +286,20 @@
                 const movie = await movieRes.json();
                 currentModalMovie = movie;
                 const credits = await creditsRes.json();
-                
                 const backdropPath = movie.backdrop_path ? `${BACKDROP_BASE_URL}${movie.backdrop_path}` : 'https://placehold.co/1280x720/000000/333333?text=...';
                 const metadata = userMovieMetadata[movie.id] || { isWatched: false, userRating: 0 };
                 const director = credits.crew.find(c => c.job === 'Director');
                 const isMovieInList = myMovieList.some(m => m.id === movie.id);
 
                 modalBody.innerHTML = `
-                    <div class="relative">
-                        <div class="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent"></div>
-                        <button id="modal-close-btn" class="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full w-8 h-8 flex items-center justify-center text-white text-2xl hover:bg-opacity-75 z-20">&times;</button>
-                        <img src="${backdropPath}" class="w-full h-auto object-cover rounded-t-lg">
-                        <h2 class="absolute bottom-4 left-4 text-4xl font-extrabold">${movie.title}</h2>
-                    </div>
-                    <div class="p-6 space-y-4">
-                        <p class="text-gray-300">${movie.overview}</p>
-                        <div class="flex flex-wrap justify-between items-center gap-4">
-                            <div>
-                                <h4 class="font-bold">Kişisel Değerlendirmeniz</h4>
-                                <div class="flex items-center gap-4 mt-2">
-                                    <button data-action="toggle-watched" class="${metadata.isWatched ? 'bg-red-600' : 'bg-gray-700'} text-white font-bold py-2 px-4 rounded">${metadata.isWatched ? 'İzlendi' : 'İzledim Olarak İşaretle'}</button>
-                                    <div class="star-rating" data-movie-id="${movie.id}">
-                                        ${[1,2,3,4,5].map(i => `<span class="star ${metadata.userRating >= i ? 'selected' : ''}" data-value="${i}">&#9733;</span>`).join('')}
-                                    </div>
-                                    ${isMovieInList ? `<button data-action="remove-from-list" class="bg-gray-800 text-white font-bold py-2 px-4 rounded hover:bg-gray-700">Listeden Çıkar</button>` : ''}
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-lg">TMDB Puanı: <span class="font-bold text-yellow-400">${movie.vote_average.toFixed(1)}</span></p>
-                                <p class="text-sm text-gray-400">${director ? `Yönetmen: ${director.name}` : ''}</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                    <div class="relative"><div class="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent"></div><button id="modal-close-btn" class="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full w-8 h-8 flex items-center justify-center text-white text-2xl hover:bg-opacity-75 z-20">&times;</button><img src="${backdropPath}" class="w-full h-auto object-cover rounded-t-lg"><h2 class="absolute bottom-4 left-4 text-4xl font-extrabold">${movie.title}</h2></div>
+                    <div class="p-6 space-y-4"><p class="text-gray-300">${movie.overview}</p><div class="flex flex-wrap justify-between items-center gap-4"><div><h4 class="font-bold">Kişisel Değerlendirmeniz</h4><div class="flex items-center gap-4 mt-2"><button data-action="toggle-watched" class="${metadata.isWatched ? 'bg-red-600' : 'bg-gray-700'} text-white font-bold py-2 px-4 rounded">${metadata.isWatched ? 'İzlendi' : 'İzledim Olarak İşaretle'}</button><div class="star-rating" data-movie-id="${movie.id}">${[1,2,3,4,5].map(i => `<span class="star ${metadata.userRating >= i ? 'selected' : ''}" data-value="${i}">&#9733;</span>`).join('')}</div>${isMovieInList ? `<button data-action="remove-from-list" class="bg-gray-800 text-white font-bold py-2 px-4 rounded hover:bg-gray-700">Listeden Çıkar</button>` : ''}</div></div><div class="text-right"><p class="text-lg">TMDB Puanı: <span class="font-bold text-yellow-400">${movie.vote_average.toFixed(1)}</span></p><p class="text-sm text-gray-400">${director ? `Yönetmen: ${director.name}` : ''}</p></div></div></div>`;
                 modal.classList.remove('hidden');
                 document.body.style.overflow = 'hidden';
             } catch(error) { console.error("Modal açma hatası:", error); }
         }
 
-        // --- OLAY YÖNETİCİLERİ ---
-        function handleLogin(event) {
+        async function handleLogin(event) {
             event.preventDefault();
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
@@ -237,69 +308,74 @@
                 loadStateFromLocalStorage();
                 loginScreen.classList.add('hidden');
                 appScreen.classList.remove('hidden');
-                initAppView();
+                await fetchInitialData();
+                renderView();
             } else { loginError.classList.remove('hidden'); }
         }
 
         function handleLogout() {
             loggedInUser = null;
-            myMovieList = []; userMovieMetadata = {}; popularMovies = []; searchResults = [];
+            myMovieList = []; userMovieMetadata = {};
+            popularMovies = []; topRatedMovies = []; upcomingMovies = [];
             appScreen.classList.add('hidden');
             loginScreen.classList.remove('hidden');
         }
         
         function handleMainContentClick(event) {
             const action = event.target.dataset.action;
+            const sortCriteria = event.target.dataset.sort;
+            const scrollDirection = event.target.dataset.direction;
+
+            if (sortCriteria) { handleSort(sortCriteria, event.target); return; }
+            if (scrollDirection) { handleScroll(scrollDirection, event.target); return; }
+
             const card = event.target.closest('.movie-card');
             if (!card) return;
             const movieId = parseInt(card.dataset.movieId);
+
             if (action === 'toggle-list') {
                 const movieIndex = myMovieList.findIndex(m => m.id === movieId);
-                const allKnownMovies = [...myMovieList, ...popularMovies, ...searchResults];
+                const allKnownMovies = [...myMovieList, ...popularMovies, ...topRatedMovies, ...upcomingMovies];
                 const movieData = allKnownMovies.find(m => m.id === movieId);
                 if (movieIndex > -1) {
                     myMovieList.splice(movieIndex, 1);
                     delete userMovieMetadata[movieId];
                 } else if (movieData) {
-                    myMovieList.unshift(movieData);
-                    userMovieMetadata[movieId] = userMovieMetadata[movieId] || { isWatched: false, userRating: 0 };
+                    ensureMovieInList(movieId, movieData);
                 }
                 saveStateToLocalStorage();
-                if (document.getElementById('search-results-container')) renderMovieRow('Arama Sonuçları', searchResults, 'search-results-container');
-                else renderMovieRow('Gündemdeki Popüler Filmler', popularMovies, 'popular-movies-container');
-                renderMovieRow('Listem', myMovieList, 'my-list-container');
-                updateMovieCounter();
+                renderView();
             } else if (action === 'open-modal') {
                 openModal(movieId);
             }
         }
-
-        function ensureMovieInList(movieId) {
+        
+        function ensureMovieInList(movieId, movieData) {
             const isAlreadyInList = myMovieList.some(m => m.id === movieId);
-            if (!isAlreadyInList && currentModalMovie) {
-                myMovieList.unshift(currentModalMovie);
-                userMovieMetadata[movieId] = userMovieMetadata[movieId] || { isWatched: false, userRating: 0 };
-                return true;
+            if (!isAlreadyInList) {
+                myMovieList.unshift(movieData || currentModalMovie);
+                userMovieMetadata[movieId] = userMovieMetadata[movieId] || { isWatched: false, userRating: 0, dateAdded: Date.now() };
             }
-            userMovieMetadata[movieId] = userMovieMetadata[movieId] || { isWatched: false, userRating: 0 };
-            return false;
+            if(!userMovieMetadata[movieId].dateAdded) {
+                userMovieMetadata[movieId].dateAdded = Date.now();
+            }
         }
 
         function handleWatchedToggle() {
              const movieId = currentModalMovie.id;
-             ensureMovieInList(movieId);
+             ensureMovieInList(movieId, currentModalMovie);
              userMovieMetadata[movieId].isWatched = !userMovieMetadata[movieId].isWatched;
              saveStateToLocalStorage();
-             openModal(movieId).then(initAppView);
+             openModal(movieId).then(renderView);
         }
 
         function handleRatingChange(e) {
             const movieId = currentModalMovie.id;
             const rating = parseInt(e.target.dataset.value);
-            ensureMovieInList(movieId);
+            ensureMovieInList(movieId, currentModalMovie);
             userMovieMetadata[movieId].userRating = rating;
             saveStateToLocalStorage();
-            openModal(movieId).then(initAppView);
+            openModal(movieId).then(renderView);
         }
         
         function handleRemoveFromList() {
@@ -310,7 +386,7 @@
                 delete userMovieMetadata[movieId];
                 saveStateToLocalStorage();
                 closeModal();
-                initAppView();
+                renderView();
             }
         }
         
@@ -318,16 +394,70 @@
             event.preventDefault();
             const searchTerm = searchInput.value.trim();
             if(!searchTerm) return;
+            showSpinner();
             try {
                 const response = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(searchTerm)}&language=tr-TR`);
                 const data = await response.json();
-                searchResults = data.results;
                 mainContent.innerHTML = '';
-                backToHomeBtn.classList.remove('hidden');
-                renderMovieRow(`Arama Sonuçları: "${searchTerm}"`, searchResults, 'search-results-container');
-            } catch (error) { console.error("Arama hatası:", error); }
+                navHomeBtn.classList.remove('hidden');
+                navListBtn.classList.remove('hidden');
+                navFilterBtn.classList.add('hidden');
+                renderMovieRow(`Arama Sonuçları: "${searchTerm}"`, data.results, 'search-results-container', {scrollable: true});
+            } catch (error) { 
+                console.error("Arama hatası:", error);
+                mainContent.innerHTML = `<p class="text-center text-red-500">Arama sırasında bir hata oluştu.</p>`;
+            } finally {
+                hideSpinner();
+            }
+        }
+        
+        function handleSort(criteria, clickedButton) {
+            switch (criteria) {
+                case 'dateAdded': myMovieList.sort((a, b) => (userMovieMetadata[b.id]?.dateAdded || 0) - (userMovieMetadata[a.id]?.dateAdded || 0)); break;
+                case 'userRating': myMovieList.sort((a, b) => (userMovieMetadata[b.id]?.userRating || 0) - (userMovieMetadata[a.id]?.userRating || 0)); break;
+                case 'release_date': myMovieList.sort((a, b) => new Date(b.release_date) - new Date(a.release_date)); break;
+            }
+            renderMovieRow('Listem', myMovieList, 'my-list-container', { sortable: true, activeSort: criteria });
+        }
+        
+        async function handleFilterChange() {
+            const genre = genreFilter.value;
+            const year = yearFilter.value;
+            const rating = ratingFilter.value;
+
+            closeFilterPanel();
+            if(!genre && !year && !rating) return;
+
+            let query = `&sort_by=popularity.desc`;
+            if (genre) query += `&with_genres=${genre}`;
+            if (year) query += `&primary_release_year=${year}`;
+            if (rating) query += `&vote_average.gte=${rating}`;
+            
+            showSpinner();
+            try {
+                const response = await fetch(`${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&language=tr-TR${query}`);
+                const data = await response.json();
+                mainContent.innerHTML = '';
+                renderHomePageContent(data.results);
+            } catch (error) {
+                console.error("Filtreleme hatası:", error);
+            } finally {
+                hideSpinner();
+            }
+        }
+        
+        function handleScroll(direction, button) {
+            const row = button.closest('.movie-row').querySelector('.movie-row-grid-scrollable');
+            if(!row) return;
+            const scrollAmount = row.clientWidth * 0.8;
+            row.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth'});
         }
 
+        function switchView(view) {
+            currentView = view;
+            renderView();
+        }
+        
         loginForm.addEventListener('submit', handleLogin);
         logoutBtn.addEventListener('click', handleLogout);
         mainContent.addEventListener('click', handleMainContentClick);
@@ -338,8 +468,16 @@
             if (e.target.matches('[data-action="remove-from-list"]')) handleRemoveFromList();
         });
         searchForm.addEventListener('submit', handleSearch);
-        backToHomeBtn.addEventListener('click', initAppView);
-
+        navHomeBtn.addEventListener('click', () => switchView('home'));
+        navListBtn.addEventListener('click', () => switchView('list'));
+        navFilterBtn.addEventListener('click', openFilterPanel);
+        document.getElementById('apply-filters-btn').addEventListener('click', handleFilterChange);
+        document.getElementById('clear-filters-btn').addEventListener('click', () => {
+             genreFilter.selectedIndex = 0; yearFilter.selectedIndex = 0; ratingFilter.selectedIndex = 0;
+             closeFilterPanel();
+             renderView();
+        });
+    });
     </script>
 </body>
 </html>
